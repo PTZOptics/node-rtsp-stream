@@ -1,4 +1,4 @@
-var Mpeg1Muxer, child_process, events, util
+var MP4Muxer, child_process, events, util
 
 child_process = require('child_process')
 
@@ -6,7 +6,7 @@ util = require('util')
 
 events = require('events')
 
-Mpeg1Muxer = function(options) {
+MP4Muxer = function(options) {
   var key
   this.url = options.url
   this.ffmpegOptions = options.ffmpegOptions
@@ -20,15 +20,16 @@ Mpeg1Muxer = function(options) {
       }
     }
   }
+  // Run ffmpeg and print output out to us
   this.spawnOptions = [
     "-rtsp_transport",
     "tcp",
     "-i",
     this.url,
     '-f',
-    'mpegts',
+    'h264',
     '-codec:v',
-    'mpeg1video',
+    'h264',
     // additional ffmpeg options go here
     ...this.additionalFlags,
     '-'
@@ -38,7 +39,7 @@ Mpeg1Muxer = function(options) {
   })
   this.inputStreamStarted = true
   this.stream.stdout.on('data', (data) => {
-    return this.emit('mpeg1data', data)
+    return this.emit('mp4data', data)
   })
   this.stream.stderr.on('data', (data) => {
     return this.emit('ffmpegStderr', data)
@@ -53,6 +54,6 @@ Mpeg1Muxer = function(options) {
   return this
 }
 
-util.inherits(Mpeg1Muxer, events.EventEmitter)
+util.inherits(MP4Muxer, events.EventEmitter)
 
-module.exports = Mpeg1Muxer
+module.exports = MP4Muxer

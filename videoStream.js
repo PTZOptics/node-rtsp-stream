@@ -1,4 +1,4 @@
-var Mpeg1Muxer, STREAM_MAGIC_BYTES, VideoStream, events, util, ws
+var MP4Muxer, STREAM_MAGIC_BYTES, VideoStream, events, util, ws
 
 ws = require('ws')
 
@@ -6,7 +6,10 @@ util = require('util')
 
 events = require('events')
 
-Mpeg1Muxer = require('./mpeg1muxer')
+/** Command:
+ * ffmpeg -rtsp_transport tcp -i rtsp://192.168.15.41 -f h264 -codec:v h264 -
+ */
+MP4Muxer = require('./mp4muxer')
 
 STREAM_MAGIC_BYTES = "jsmp" // Must be 4 bytes
 
@@ -19,7 +22,7 @@ VideoStream = function(options) {
   this.wsPort = options.wsPort
   this.inputStreamStarted = false
   this.stream = undefined
-  this.startMpeg1Stream()
+  this.startMP4Stream()
   this.pipeStreamToSocketServer()
   return this
 }
@@ -33,25 +36,25 @@ VideoStream.prototype.stop = function() {
   return this
 }
 
-VideoStream.prototype.startMpeg1Stream = function() {
+VideoStream.prototype.startMP4Stream = function() {
   var gettingInputData, gettingOutputData, inputData, outputData
-  this.mpeg1Muxer = new Mpeg1Muxer({
+  this.MP4Muxer = new MP4Muxer({
     ffmpegOptions: this.options.ffmpegOptions,
     url: this.streamUrl,
     ffmpegPath: this.options.ffmpegPath == undefined ? "ffmpeg" : this.options.ffmpegPath
   })
-  this.stream = this.mpeg1Muxer.stream
+  this.stream = this.MP4Muxer.stream
   if (this.inputStreamStarted) {
     return
   }
-  this.mpeg1Muxer.on('mpeg1data', (data) => {
+  this.MP4Muxer.on('mp4data', (data) => {
     return this.emit('camdata', data)
   })
   gettingInputData = false
   inputData = []
   gettingOutputData = false
   outputData = []
-  this.mpeg1Muxer.on('ffmpegStderr', (data) => {
+  this.MP4Muxer.on('ffmpegStderr', (data) => {
     var size
     data = data.toString()
     if (data.indexOf('Input #') !== -1) {
@@ -78,10 +81,10 @@ VideoStream.prototype.startMpeg1Stream = function() {
       }
     }
   })
-  this.mpeg1Muxer.on('ffmpegStderr', function(data) {
+  this.MP4Muxer.on('ffmpegStderr', function(data) {
     return global.process.stderr.write(data)
   })
-  this.mpeg1Muxer.on('exitWithError', () => {
+  this.MP4Muxer.on('exitWithError', () => {
     return this.emit('exitWithError')
   })
   return this
@@ -115,10 +118,10 @@ VideoStream.prototype.onSocketConnect = function(socket, request) {
   var streamHeader
   // Send magic bytes and video size to the newly connected socket
   // struct { char magic[4]; unsigned short width, height;}
-  streamHeader = new Buffer(8)
-  streamHeader.write(STREAM_MAGIC_BYTES)
-  streamHeader.writeUInt16BE(this.width, 4)
-  streamHeader.writeUInt16BE(this.height, 6)
+  streamHeader = new Buffer.alloc(8);
+  streamHeader.write(STREAM_MAGIC_BYTES);
+  streamHeader.writeUInt16BE(this.width, 4);
+  streamHeader.writeUInt16BE(this.height, 6);
   socket.send(streamHeader, {
     binary: true
   })
